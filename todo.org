@@ -1,3 +1,3 @@
 Main tasks of the project:
 - [x] Get vision filtering for the robot
-- [ ] Get
+- [ ] Get the vehicle to steer to a point which is in the visionary field of the vehicle
