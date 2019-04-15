@@ -6,7 +6,7 @@ data = np.loadtxt("positions.txt", delimiter=',', skiprows=1)
 points = []
 xValues = []
 yValues = []
-widthGrid, heightGrid = np.mgrid[0:640:40, 0:480:40]
+widthGrid, heightGrid = np.mgrid[0:640:1, 0:480:1]
 
 nrPoints = data.shape[0]
 for i in range(nrPoints):
@@ -18,8 +18,10 @@ xValues = np.array(xValues)
 yValues = np.array(yValues)
 xGrid = griddata(points, xValues, (widthGrid, heightGrid), method='linear')
 yGrid = griddata(points, yValues, (widthGrid, heightGrid), method='linear')
+print("Dimension of interpolated data: " + str(xGrid.shape))
 
-np.savetxt("widthGrid.csv", widthGrid)
-np.savetxt("heightGrid.csv", heightGrid)
-np.savetxt("xGrid.csv", xGrid)
-np.savetxt("yGrid.csv", yGrid)
+
+np.savetxt("widthGrid.csv", widthGrid, delimiter=',')
+np.savetxt("heightGrid.csv", heightGrid, delimiter=',')
+np.savetxt("xGrid.csv", xGrid, delimiter=',')
+np.savetxt("yGrid.csv", yGrid, delimiter=',')

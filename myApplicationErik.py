@@ -46,6 +46,7 @@ def onDistance(msg, senderStamp, timeStamps):
         distances["right"] = msg.distance
 
 def calcAimPoint(blueCones, yellowCones):
+    #TODO: Add constraint for where aimpoint can be placed.
     (width, height) = blueCones.shape
     kernel = numpy.ones((10,10))/(10.0*10.0)
     anchor = (-1,-1)
@@ -73,18 +74,6 @@ def calcAimPoint(blueCones, yellowCones):
                 yellowCoords = (x,y)
     else:
         yellowCoords = None
-    '''
-    for j in range(height/3, height):
-        for i in range(width):
-            if (blueCones[i,j] == 1):
-                blueCoords = (i, j)
-                break
-    for j in range(height/3, height):
-        for i in range(width):
-            if (yellowCones[i,j] == 1):
-                yellowCoords = (i, j)
-                break
-    '''
     if (blueCoords is not None and yellowCoords is not None):
         xCoord = (yellowCoords[0] + blueCoords[0])/2
         yCoord = (yellowCoords[1] + blueCoords[1])/2
@@ -93,6 +82,21 @@ def calcAimPoint(blueCones, yellowCones):
         yCoord = None
     return (xCoord, yCoord)
 
+
+def calcSteeringAngle(aimPoint, xGrid, yGrid):
+    xCoord = xGrid[aimPoint]
+    yCoord = yGrid[aimPoint]
+    print("xCoord: " + str(xCoord))
+    print("yCoord: " + str(yCoord))
+    steeringAngle = numpy.arctan(yCoord/xCoord)
+    print("SteeringAngle: " + str(steeringAngle))
+    if (numpy.isnan(steeringAngle)):
+        steeringAngle = 0
+    elif (steeringAngle < -38/180.0*numpy.pi):
+        steeringAngle = -38/180.0*numpy.pi
+    elif (steeringAngle > 38/180.0*numpy.pi):
+        steeringAngle = 38/180.0*numpy.pi
+    return steeringAngle
 
 # Create a session to send and receive messages from a running OD4Session;
 # Replay mode: CID = 253
@@ -122,11 +126,14 @@ mutex = sysv_ipc.Semaphore(keySemCondition)
 cond = sysv_ipc.Semaphore(keySemCondition)
 
 ################################################################################
+# Load calibration data
+xGrid = numpy.loadtxt("xGrid.csv", delimiter=",")
+yGrid = numpy.loadtxt("yGrid.csv", delimiter=",")
 # Main loop to process the next image frame coming in.
 while True:
     # Wait for next notification.
     cond.Z()
-    print "Received new frame."
+    #print "Received new frame."
 
     # Lock access to shared memory.
     mutex.acquire()
@@ -195,7 +202,7 @@ while True:
       #cv2.imshow("Dilated", dilate)
       #cv2.imshow("Blue", erode_blue)
       #cv2.imshow("Yellow", erode_yellow)
-      cv2.imshow("Cones", cone_image)
+      #cv2.imshow("Cones", cone_image)
       cv2.waitKey(2)
 
     ############################################################################
@@ -208,20 +215,25 @@ while True:
     ############################################################################
     # Example for creating and sending a message to other microservices; can
     # be removed when not needed.
-    angleReading = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngleReading()
+    '''angleReading = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngleReading()
     angleReading.angle = 123.45
 
     # 1038 is the message ID for opendlv.proxy.AngleReading
-    session.send(1038, angleReading.SerializeToString());
+    session.send(1038, angleReading.SerializeToString());'''
 
     ############################################################################
     # Steering and acceleration/decelration.
     #
     # Uncomment the following lines to steer; range: +38deg (left) .. -38deg (right).
     # Value groundSteeringRequest.groundSteering must be given in radians (DEG/180. * PI).
-    #groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
-    #groundSteeringRequest.groundSteering = 0
-    #session.send(1090, groundSteeringRequest.SerializeToString());
+    if (aimPoint[0] is not None):
+      steeringAngle = calcSteeringAngle(aimPoint, xGrid, yGrid)
+    else:
+      steeringAngle = 0
+    #print(steeringAngle)
+    groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
+    groundSteeringRequest.groundSteering = 0
+    session.send(1090, groundSteeringRequest.SerializeToString());
 
     # Uncomment the following lines to accelerate/decelerate; range: +0.25 (forward) .. -1.0 (backwards).
     # Be careful!
