@@ -6,7 +6,7 @@ data = np.loadtxt("positions.txt", delimiter=',', skiprows=1)
 points = []
 xValues = []
 yValues = []
-widthGrid, heightGrid = np.mgrid[0:640:1, 0:480:1]
+widthGrid, heightGrid = np.mgrid[0:640:1, 220:330:1]
 
 nrPoints = data.shape[0]
 for i in range(nrPoints):

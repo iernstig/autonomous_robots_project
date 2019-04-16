@@ -33,9 +33,9 @@ distances = { "front": 0.0, "left": 0.0, "right": 0.0, "rear": 0.0 };
 ################################################################################
 # This callback is triggered whenever there is a new distance reading coming in.
 def onDistance(msg, senderStamp, timeStamps):
-    print "Received distance; senderStamp=" + str(senderStamp)
-    print "sent: " + str(timeStamps[0]) + ", received: " + str(timeStamps[1]) + ", sample time stamps: " + str(timeStamps[2])
-    print msg
+    #print "Received distance; senderStamp=" + str(senderStamp)
+    #print "sent: " + str(timeStamps[0]) + ", received: " + str(timeStamps[1]) + ", sample time stamps: " + str(timeStamps[2])
+    #print msg
     if senderStamp == 0:
         distances["front"] = msg.distance
     if senderStamp == 1:
@@ -45,6 +45,58 @@ def onDistance(msg, senderStamp, timeStamps):
     if senderStamp == 3:
         distances["right"] = msg.distance
 
+def calcAimPoint(blueCones, yellowCones):
+    #TODO: Add constraint for where aimpoint can be placed.
+    (width, height) = blueCones.shape
+    kernel = numpy.ones((10,10))/(10.0*10.0)
+    anchor = (-1,-1)
+    delta = 0
+    ddepth = -1
+    blueCoords = None
+    yellowCoords = None
+    nonZeroBlue = cv2.findNonZero(blueCones)
+    nonZeroYellow = cv2.findNonZero(yellowCones)
+    blueCoords = (0,481)
+    yellowCoords = (0,481)
+    if (nonZeroBlue is not None):
+        for i in range(nonZeroBlue.shape[0]):
+            x = nonZeroBlue[i,0,0]
+            y = nonZeroBlue[i,0,1]
+            if (y < blueCoords[1]):         
+                blueCoords = (x,y)
+    else:
+        blueCoords = None
+    if (nonZeroYellow is not None):
+        for i in range(nonZeroYellow.shape[0]):
+            x = nonZeroYellow[i,0,0]
+            y = nonZeroYellow[i,0,1]
+            if (y < yellowCoords[1]):         
+                yellowCoords = (x,y)
+    else:
+        yellowCoords = None
+    if (blueCoords is not None and yellowCoords is not None):
+        xCoord = (yellowCoords[0] + blueCoords[0])/2
+        yCoord = (yellowCoords[1] + blueCoords[1])/2
+    else:
+        xCoord = None
+        yCoord = None
+    return (xCoord, yCoord)
+
+
+def calcSteeringAngle(aimPoint, xGrid, yGrid):
+    xCoord = xGrid[aimPoint]
+    yCoord = yGrid[aimPoint]
+    print("xCoord: " + str(xCoord))
+    print("yCoord: " + str(yCoord))
+    steeringAngle = numpy.arctan(yCoord/xCoord)
+    #print("SteeringAngle: " + str(steeringAngle))
+    if (numpy.isnan(steeringAngle)):
+        steeringAngle = 0
+    elif (steeringAngle < -38/180.0*numpy.pi):
+        steeringAngle = -38/180.0*numpy.pi
+    elif (steeringAngle > 38/180.0*numpy.pi):
+        steeringAngle = 38/180.0*numpy.pi
+    return steeringAngle
 
 # Create a session to send and receive messages from a running OD4Session;
 # Replay mode: CID = 253
@@ -74,11 +126,15 @@ mutex = sysv_ipc.Semaphore(keySemCondition)
 cond = sysv_ipc.Semaphore(keySemCondition)
 
 ################################################################################
+# Load calibration data
+xGrid = numpy.loadtxt("xGrid.csv", delimiter=",")
+yGrid = numpy.loadtxt("yGrid.csv", delimiter=",")
 # Main loop to process the next image frame coming in.
+#i = 0
 while True:
     # Wait for next notification.
     cond.Z()
-    print "Received new frame."
+    #print "Received new frame."
 
     # Lock access to shared memory.
     mutex.acquire()
@@ -93,6 +149,7 @@ while True:
 
     # Turn buf into img array (640 * 480 * 4 bytes (ARGB)) to be used with OpenCV.
     img = numpy.frombuffer(buf, numpy.uint8).reshape(480, 640, 4)
+    img = img[220:330,:,:]
 
     ############################################################################
     # TODO: Add some image processing logic here.
@@ -102,6 +159,8 @@ while True:
 
     # Added by Erik
     #canny = cv2.Canny(img, 100,200)
+    #cv2.imwrite("screen-" + str(i) +".png", img)
+    #i = i +1
 
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -122,7 +181,7 @@ while True:
     erode_blue = cv2.erode(dilate_blue, kernel, iterations=2)
     erode_yellow = cv2.erode(dilate_yellow, kernel, iterations=2)
 
-    cone_image = numpy.zeros((480,640,3), numpy.uint8)
+    '''cone_image = numpy.zeros((480,640,3), numpy.uint8)
     blue_image = numpy.zeros((480,640,3), numpy.uint8)
     blue_image[:] = (255,0,0)
     yellow_image = numpy.zeros((480,640,3), numpy.uint8)
@@ -130,7 +189,14 @@ while True:
 
     yellow_part = cv2.bitwise_and(yellow_image, yellow_image, mask=erode_yellow)
     blue_part = cv2.bitwise_and(blue_image, blue_image, mask=erode_blue)
-    cone_image = cv2.add(blue_part, yellow_part)
+    cone_image = cv2.add(blue_part, yellow_part)'''
+
+    aimPoint = calcAimPoint(erode_blue, erode_yellow)
+    if (aimPoint[0] is not None):
+      img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS)
+    else:
+      img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS)
+   
 
     if(cid == 253):
       cv2.imshow("image", img);
@@ -140,37 +206,49 @@ while True:
       #cv2.imshow("Dilated", dilate)
       #cv2.imshow("Blue", erode_blue)
       #cv2.imshow("Yellow", erode_yellow)
-      cv2.imshow("Cones", cone_image)
+      #cv2.imshow("Cones", cone_image)
       cv2.waitKey(2)
 
     ############################################################################
     # Example: Accessing the distance readings.
-    print "Front = " + str(distances["front"])
+    '''print "Front = " + str(distances["front"])
     print "Left = " + str(distances["left"])
     print "Right = " + str(distances["right"])
-    print "Rear = " + str(distances["rear"])
+    print "Rear = " + str(distances["rear"])'''
 
     ############################################################################
     # Example for creating and sending a message to other microservices; can
     # be removed when not needed.
-    angleReading = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngleReading()
+    '''angleReading = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngleReading()
     angleReading.angle = 123.45
 
     # 1038 is the message ID for opendlv.proxy.AngleReading
-    session.send(1038, angleReading.SerializeToString());
+    session.send(1038, angleReading.SerializeToString());'''
 
     ############################################################################
     # Steering and acceleration/decelration.
     #
     # Uncomment the following lines to steer; range: +38deg (left) .. -38deg (right).
     # Value groundSteeringRequest.groundSteering must be given in radians (DEG/180. * PI).
-    #groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
-    #groundSteeringRequest.groundSteering = 0
-    #session.send(1090, groundSteeringRequest.SerializeToString());
+
+    if (aimPoint[0] is not None):
+      steeringAngle = calcSteeringAngle(aimPoint, xGrid, yGrid)
+      print("Steering angle: " + str(steeringAngle/numpy.pi*180))
+      groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
+      groundSteeringRequest.groundSteering = steeringAngle
+      session.send(1090, groundSteeringRequest.SerializeToString());
 
     # Uncomment the following lines to accelerate/decelerate; range: +0.25 (forward) .. -1.0 (backwards).
     # Be careful!
-    #pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
-    #pedalPositionRequest.position = 0
-    #session.send(1086, pedalPositionRequest.SerializeToString());
+    pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
+    if (distances["front"] > 0.1):
+      pedalPositionRequest.position = 0.1
+    else:
+      print("Front distance too close!")
+      pedalPositionRequest.position = 0
+      groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
+      groundSteeringRequest.groundSteering = 0
+      session.send(1090, groundSteeringRequest.SerializeToString());
+      
+    session.send(1086, pedalPositionRequest.SerializeToString());
 
