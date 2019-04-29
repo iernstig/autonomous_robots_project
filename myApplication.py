@@ -56,13 +56,13 @@ def calcAimPoint(blueCones, yellowCones):
     yellowCoords = None
     nonZeroBlue = cv2.findNonZero(blueCones)
     nonZeroYellow = cv2.findNonZero(yellowCones)
-    blueCoords = (0,481)
-    yellowCoords = (0,481)
+    blueCoords = (0,0)
+    yellowCoords = (0,0)
     if (nonZeroBlue is not None):
         for i in range(nonZeroBlue.shape[0]):
             x = nonZeroBlue[i,0,0]
             y = nonZeroBlue[i,0,1]
-            if (y < blueCoords[1]):         
+            if (y > blueCoords[1]):         
                 blueCoords = (x,y)
     else:
         blueCoords = None
@@ -70,33 +70,39 @@ def calcAimPoint(blueCones, yellowCones):
         for i in range(nonZeroYellow.shape[0]):
             x = nonZeroYellow[i,0,0]
             y = nonZeroYellow[i,0,1]
-            if (y < yellowCoords[1]):         
+            if (y > yellowCoords[1]):         
                 yellowCoords = (x,y)
     else:
         yellowCoords = None
     if (blueCoords is not None and yellowCoords is not None):
         xCoord = (yellowCoords[0] + blueCoords[0])/2
         yCoord = (yellowCoords[1] + blueCoords[1])/2
+    elif (blueCoords is not None):
+        xCoord = 480
+        yCoord = 55
+    elif (yellowCoords is not None):
+        xCoord = 160
+        yCoord = 55
     else:
         xCoord = None
         yCoord = None
     return (xCoord, yCoord)
 
 
-def calcSteeringAngle(aimPoint, xGrid, yGrid):
-    xCoord = xGrid[aimPoint]
-    yCoord = yGrid[aimPoint]
-    print("xCoord: " + str(xCoord))
-    print("yCoord: " + str(yCoord))
-    steeringAngle = numpy.arctan(yCoord/xCoord)
-    #print("SteeringAngle: " + str(steeringAngle))
-    if (numpy.isnan(steeringAngle)):
-        steeringAngle = 0
-    elif (steeringAngle < -38/180.0*numpy.pi):
-        steeringAngle = -38/180.0*numpy.pi
-    elif (steeringAngle > 38/180.0*numpy.pi):
-        steeringAngle = 38/180.0*numpy.pi
-    return steeringAngle
+def calcSteeringAngle(aimPoint, integralPart):
+    K_p = 0.1
+    K_i = 0
+    xCoord = aimPoint[0]
+    error = (320 - xCoord)/320.0
+    integralPart += error
+    steeringAngle = K_p*error + K_i*integralPart
+    if (steeringAngle < -0.3):
+        steeringAngle = -0.3
+        integralPart = 0
+    elif (steeringAngle > 0.3):
+        steeringAngle = 0.3
+        integralPart = 0
+    return steeringAngle, integralPart
 
 # Create a session to send and receive messages from a running OD4Session;
 # Replay mode: CID = 253
@@ -127,10 +133,13 @@ cond = sysv_ipc.Semaphore(keySemCondition)
 
 ################################################################################
 # Load calibration data
-xGrid = numpy.loadtxt("xGrid.csv", delimiter=",")
-yGrid = numpy.loadtxt("yGrid.csv", delimiter=",")
+#xGrid = numpy.loadtxt("xGrid.csv", delimiter=",")
+#yGrid = numpy.loadtxt("yGrid.csv", delimiter=",")
+
+# integral part init
+integralPart = 0
 # Main loop to process the next image frame coming in.
-#i = 0
+
 while True:
     # Wait for next notification.
     cond.Z()
@@ -174,8 +183,8 @@ while True:
 
     # Dilate 
     kernel = numpy.ones((3,3), numpy.uint8)
-    dilate_blue = cv2.dilate(blue_cones, kernel, iterations=3)
-    dilate_yellow = cv2.dilate(yellow_cones, kernel, iterations=3)
+    dilate_blue = cv2.dilate(blue_cones, kernel, iterations=4)
+    dilate_yellow = cv2.dilate(yellow_cones, kernel, iterations=4)
 
     # Erode
     erode_blue = cv2.erode(dilate_blue, kernel, iterations=2)
@@ -194,6 +203,9 @@ while True:
     aimPoint = calcAimPoint(erode_blue, erode_yellow)
     if (aimPoint[0] is not None):
       img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS)
+      
+      (steeringAngle, integralPart) = calcSteeringAngle(aimPoint, integralPart)
+      img = cv2.putText(img, text=str(steeringAngle/numpy.pi*180), org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale = 1, color = (255, 255, 255), lineType = 2)
     else:
       img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS)
    
@@ -203,9 +215,10 @@ while True:
       #cv2.imshow("canny", canny)
       #cv2.imshow("mask", mask)
       #cv2.imshow("result", result)
-      #cv2.imshow("Dilated", dilate)
-      #cv2.imshow("Blue", erode_blue)
-      #cv2.imshow("Yellow", erode_yellow)
+      #cv2.imshow("Blue original", blue_cones)
+      #cv2.imshow("Blue Dilated", dilate_blue)
+      #cv2.imshow("Blue Eroded", erode_blue)
+      #cv2.imshow("Yellow Eroded", erode_yellow)
       #cv2.imshow("Cones", cone_image)
       cv2.waitKey(2)
 
@@ -232,7 +245,6 @@ while True:
     # Value groundSteeringRequest.groundSteering must be given in radians (DEG/180. * PI).
 
     if (aimPoint[0] is not None):
-      steeringAngle = calcSteeringAngle(aimPoint, xGrid, yGrid)
       print("Steering angle: " + str(steeringAngle/numpy.pi*180))
       groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = steeringAngle
@@ -242,7 +254,7 @@ while True:
     # Be careful!
     pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
     if (distances["front"] > 0.1):
-      pedalPositionRequest.position = 0.1
+      pedalPositionRequest.position = 0.11
     else:
       print("Front distance too close!")
       pedalPositionRequest.position = 0
