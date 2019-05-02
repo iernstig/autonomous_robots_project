@@ -21,6 +21,7 @@ import sysv_ipc
 # numpy and cv2 are needed to access, modify, or display the pixels
 import numpy
 import cv2
+import time
 # OD4Session is needed to send and receive messages
 import OD4Session
 # Import the OpenDLV Standard Message Set.
@@ -118,12 +119,16 @@ def calcAimPoint(blueHits, yellowHits):
   return (xCoord, yCoord)
   
 def calcSteeringAngle(aimPoint, integralPart):
-    K_p = 0.1
+    K_p_left = 0.3
+    K_p_right = 0.2
     K_i = 0
     xCoord = aimPoint[0]
     error = (320 - xCoord)/320.0
     integralPart += error
-    steeringAngle = K_p*error + K_i*integralPart
+    if (error > 0):
+     steeringAngle = K_p_left * error + K_i * integralPart
+    else:
+      steeringAngle = K_p_right * error + K_i * integralPart
     if (steeringAngle < -0.3):
         steeringAngle = -0.3
         integralPart = 0
@@ -141,8 +146,9 @@ def findCones(blue_img, yellow_img, image, cid):
     cY = int(M["m01"] / M["m00"])
 
     area = cv2.contourArea(c)
-    if (area < 800 and area > 50):
+    if (area < 2000 and area > 50):
       if (cid == 253):
+        print("Area: " + str(area))
         cv2.drawContours(image, [c], 0, (255, 0, 0), 2)
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -156,8 +162,9 @@ def findCones(blue_img, yellow_img, image, cid):
     cY = int(M["m01"] / M["m00"])
 
     area = cv2.contourArea(c)
-    if (area < 800 and area > 50):
+    if (area < 2000 and area > 50):
       if (cid == 253):
+        print("Area: " + str(area))
         cv2.drawContours(image, [c], 0, (0, 255, 0), 2)
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -199,13 +206,27 @@ cond = sysv_ipc.Semaphore(keySemCondition)
 
 # integral part init
 integralPart = 0
+# Counter to eval fram rate
+if (cid == 112):
+  frameCounter = 0
+  counterTime = time.time()
 # Main loop to process the next image frame coming in.
 
 while True:
     # Wait for next notification.
     cond.Z()
     #print "Received new frame."
-
+    if (cid == 112):
+      frameCounter += 1
+      if frameCounter == 20:
+        timeElapsed = time.time() - counterTime
+        frameRate = 20/timeElapsed
+        print("************")
+        print("Frame rate is: " + str(frameRate) + "per second!")
+        print("************")
+        frameCounter = 0
+        counterTime = time.time()
+      
     # Lock access to shared memory.
     mutex.acquire()
     # Attach to shared memory.
@@ -228,7 +249,7 @@ while True:
     # cv2.rectangle(img, (50, 50), (100, 100), (0,0,255), 2)
 
     # Added by Erik
-    canny = cv2.Canny(img, 100,200)
+    # canny = cv2.Canny(img, 100,200)
     #cv2.imwrite("screen-" + str(i) +".png", img)
     #i = i +1
 
@@ -318,7 +339,7 @@ while True:
     # Be careful!
     pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
     if (distances["front"] > 0.1):
-      pedalPositionRequest.position = 0.11
+      pedalPositionRequest.position = 0.13
     else:
       print("Front distance too close!")
       pedalPositionRequest.position = 0
