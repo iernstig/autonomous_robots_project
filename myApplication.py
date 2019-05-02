@@ -45,7 +45,7 @@ def onDistance(msg, senderStamp, timeStamps):
     if senderStamp == 3:
         distances["right"] = msg.distance
 
-def calcAimPoint(blueCones, yellowCones):
+'''def calcAimPoint(blueCones, yellowCones):
     #TODO: Add constraint for where aimpoint can be placed.
     (width, height) = blueCones.shape
     kernel = numpy.ones((10,10))/(10.0*10.0)
@@ -87,8 +87,36 @@ def calcAimPoint(blueCones, yellowCones):
         xCoord = None
         yCoord = None
     return (xCoord, yCoord)
-
-
+'''
+def calcAimPoint(blueHits, yellowHits):
+  blueCoords = (0, 0)
+  yellowCoords = (0, 0)
+  nrBlueHits = len(blueHits)
+  nrYellowHits = len(yellowHits)
+  if (nrBlueHits > 0 and nrYellowHits > 0):
+    for i in range(nrBlueHits):
+      x = blueHits[i][0]
+      y = blueHits[i][1]
+      if (y > blueCoords[1]):
+        blueCoords = (x, y)
+    for i in range(nrYellowHits):
+      x = yellowHits[i][0]
+      y = yellowHits[i][1]
+      if (y > yellowCoords[1]):
+        yellowCoords = (x, y)
+    xCoord = (blueCoords[0] + yellowCoords[0])/2
+    yCoord = (blueCoords[1] + yellowCoords[1])/2
+  elif (nrBlueHits > 0):
+    xCoord = 480
+    yCoord = 55
+  elif (nrYellowHits > 0):
+    xCoord = 160
+    yCoord = 55
+  else:
+    xCoord = 320
+    yCoord = 55
+  return (xCoord, yCoord)
+  
 def calcSteeringAngle(aimPoint, integralPart):
     K_p = 0.1
     K_i = 0
@@ -103,6 +131,39 @@ def calcSteeringAngle(aimPoint, integralPart):
         steeringAngle = 0.3
         integralPart = 0
     return steeringAngle, integralPart
+
+def findCones(blue_img, yellow_img, image, cid):
+  im2, cnts, hier = cv2.findContours(blue_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+  blue_hits = []
+  for c in cnts:
+    M = cv2.moments(c)
+    cX = int(M["m10"] / M["m00"])
+    cY = int(M["m01"] / M["m00"])
+
+    area = cv2.contourArea(c)
+    if (area < 800 and area > 50):
+      if (cid == 253):
+        cv2.drawContours(image, [c], 0, (255, 0, 0), 2)
+        cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
+        cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+      blue_hits.append((cX, cY))
+  
+  im2, cnts, hier = cv2.findContours(yellow_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+  yellow_hits = []
+  for c in cnts:
+    M = cv2.moments(c)
+    cX = int(M["m10"] / M["m00"])
+    cY = int(M["m01"] / M["m00"])
+
+    area = cv2.contourArea(c)
+    if (area < 800 and area > 50):
+      if (cid == 253):
+        cv2.drawContours(image, [c], 0, (0, 255, 0), 2)
+        cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
+        cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+      yellow_hits.append((cX, cY))
+  return blue_hits, yellow_hits, image
+
 
 # Create a session to send and receive messages from a running OD4Session;
 # Replay mode: CID = 253
@@ -167,7 +228,7 @@ while True:
     # cv2.rectangle(img, (50, 50), (100, 100), (0,0,255), 2)
 
     # Added by Erik
-    #canny = cv2.Canny(img, 100,200)
+    canny = cv2.Canny(img, 100,200)
     #cv2.imwrite("screen-" + str(i) +".png", img)
     #i = i +1
 
@@ -190,6 +251,10 @@ while True:
     erode_blue = cv2.erode(dilate_blue, kernel, iterations=2)
     erode_yellow = cv2.erode(dilate_yellow, kernel, iterations=2)
 
+
+    blue_list, yellow_list, img = findCones(erode_blue, erode_yellow, img, cid)
+
+
     '''cone_image = numpy.zeros((480,640,3), numpy.uint8)
     blue_image = numpy.zeros((480,640,3), numpy.uint8)
     blue_image[:] = (255,0,0)
@@ -200,7 +265,7 @@ while True:
     blue_part = cv2.bitwise_and(blue_image, blue_image, mask=erode_blue)
     cone_image = cv2.add(blue_part, yellow_part)'''
 
-    aimPoint = calcAimPoint(erode_blue, erode_yellow)
+    aimPoint = calcAimPoint(blue_list, yellow_list)
     if (aimPoint[0] is not None):
       img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS)
       
@@ -217,7 +282,6 @@ while True:
       #cv2.imshow("result", result)
       #cv2.imshow("Blue original", blue_cones)
       #cv2.imshow("Blue Dilated", dilate_blue)
-      #cv2.imshow("Blue Eroded", erode_blue)
       #cv2.imshow("Yellow Eroded", erode_yellow)
       #cv2.imshow("Cones", cone_image)
       cv2.waitKey(2)
