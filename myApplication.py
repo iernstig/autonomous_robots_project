@@ -107,10 +107,10 @@ def calcAimPoint(blueHits, yellowHits):
     xCoord = (blueCoords[0] + yellowCoords[0])/2
     yCoord = (blueCoords[1] + yellowCoords[1])/2
   elif (nrBlueHits > 0):
-    xCoord = 480
+    xCoord = 160
     yCoord = 55
   elif (nrYellowHits > 0):
-    xCoord = 160
+    xCoord = 480
     yCoord = 55
   else:
     xCoord = 320
@@ -169,7 +169,7 @@ def findCones(blue_img, yellow_img, image, cid):
 # Replay mode: CID = 253
 # Live mode: CID = 112
 # TODO: Change to CID 112 when this program is used on Kiwi.
-cid = 253
+cid = 112
 session = OD4Session.OD4Session(cid)
 # Register a handler for a message; the following example is listening
 # for messageID 1039 which represents opendlv.proxy.DistanceReading.
