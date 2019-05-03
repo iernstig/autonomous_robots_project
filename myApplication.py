@@ -89,7 +89,8 @@ def onDistance(msg, senderStamp, timeStamps):
         yCoord = None
     return (xCoord, yCoord)
 '''
-def calcAimPoint(blueHits, yellowHits):
+def calcAimPoint(blueHits, yellowHits, oldAimPoint):
+  alpha = 0.5
   blueCoords = (0, 0)
   yellowCoords = (0, 0)
   nrBlueHits = len(blueHits)
@@ -116,6 +117,9 @@ def calcAimPoint(blueHits, yellowHits):
   else:
     xCoord = 320
     yCoord = 55
+
+  xCoord = int(alpha*xCoord + (1-alpha)*oldAimPoint[0])
+  yCoord = int(alpha*yCoord + (1-alpha)*oldAimPoint[1])
   return (xCoord, yCoord)
   
 def calcSteeringAngle(aimPoint, integralPart):
@@ -206,6 +210,7 @@ cond = sysv_ipc.Semaphore(keySemCondition)
 
 # integral part init
 integralPart = 0
+aimPoint = (0,0)
 # Counter to eval fram rate
 if (cid == 112):
   frameCounter = 0
@@ -286,7 +291,7 @@ while True:
     blue_part = cv2.bitwise_and(blue_image, blue_image, mask=erode_blue)
     cone_image = cv2.add(blue_part, yellow_part)'''
 
-    aimPoint = calcAimPoint(blue_list, yellow_list)
+    aimPoint = calcAimPoint(blue_list, yellow_list, aimPoint)
     if (aimPoint[0] is not None):
       img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS)
       
@@ -302,7 +307,7 @@ while True:
       #cv2.imshow("mask", mask)
       #cv2.imshow("result", result)
       #cv2.imshow("Blue original", blue_cones)
-      #cv2.imshow("Blue Dilated", dilate_blue)
+      #cv2.imshow("Blue Eroded", erode_blue)
       #cv2.imshow("Yellow Eroded", erode_yellow)
       #cv2.imshow("Cones", cone_image)
       cv2.waitKey(2)
