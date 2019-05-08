@@ -152,7 +152,7 @@ def findCones(blue_img, yellow_img, image, cid):
     area = cv2.contourArea(c)
     if (area < 2000 and area > 50):
       if (cid == 253):
-        print("Area: " + str(area))
+        #print("Area: " + str(area))
         cv2.drawContours(image, [c], 0, (255, 0, 0), 2)
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -168,7 +168,7 @@ def findCones(blue_img, yellow_img, image, cid):
     area = cv2.contourArea(c)
     if (area < 2000 and area > 50):
       if (cid == 253):
-        print("Area: " + str(area))
+        #print("Area: " + str(area))
         cv2.drawContours(image, [c], 0, (0, 255, 0), 2)
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -180,7 +180,7 @@ def findCones(blue_img, yellow_img, image, cid):
 # Replay mode: CID = 253
 # Live mode: CID = 112
 # TODO: Change to CID 112 when this program is used on Kiwi.
-cid = 112
+cid = 253
 session = OD4Session.OD4Session(cid)
 # Register a handler for a message; the following example is listening
 # for messageID 1039 which represents opendlv.proxy.DistanceReading.
@@ -216,7 +216,7 @@ if (cid == 112):
   frameCounter = 0
   counterTime = time.time()
 # Main loop to process the next image frame coming in.
-
+#i=0
 while True:
     # Wait for next notification.
     cond.Z()
@@ -255,15 +255,17 @@ while True:
 
     # Added by Erik
     # canny = cv2.Canny(img, 100,200)
-    #cv2.imwrite("screen-" + str(i) +".png", img)
+    #if (i % 40 == 0):
+    #  cv2.imwrite("screen-" + str(i) +".png", img)
+    #  print("Grabbed screen nr " + str(i))
     #i = i +1
 
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    hsv_low_blue = (105, 80, 40) # for blue
-    hsv_high_blue = (125, 255, 255) # for blue
-    hsv_low_yellow = (25, 80, 40) # for yellow
-    hsv_high_yellow = (35, 255, 255) # for yellow
+    hsv_low_blue = (100, 85, 45)
+    hsv_high_blue = (120, 255, 90)
+    hsv_low_yellow = (25, 80, 120)
+    hsv_high_yellow = (32, 255, 255)
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
     #result = cv2.bitwise_and(img, img, mask=mask)
@@ -307,6 +309,7 @@ while True:
       #cv2.imshow("mask", mask)
       #cv2.imshow("result", result)
       #cv2.imshow("Blue original", blue_cones)
+      #cv2.imshow("Yellow original", yellow_cones)
       #cv2.imshow("Blue Eroded", erode_blue)
       #cv2.imshow("Yellow Eroded", erode_yellow)
       #cv2.imshow("Cones", cone_image)
@@ -333,9 +336,9 @@ while True:
     #
     # Uncomment the following lines to steer; range: +38deg (left) .. -38deg (right).
     # Value groundSteeringRequest.groundSteering must be given in radians (DEG/180. * PI).
-
+    #print(str(distances["front"]))
     if (aimPoint[0] is not None):
-      print("Steering angle: " + str(steeringAngle/numpy.pi*180))
+      #print("Steering angle: " + str(steeringAngle/numpy.pi*180))
       groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = steeringAngle
       session.send(1090, groundSteeringRequest.SerializeToString());
@@ -343,10 +346,13 @@ while True:
     # Uncomment the following lines to accelerate/decelerate; range: +0.25 (forward) .. -1.0 (backwards).
     # Be careful!
     pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
-    if (distances["front"] > 0.1):
-      pedalPositionRequest.position = 0.13
+    if (distances["front"] > 0.4):
+      pedalPositionRequest.position = 0.12
+    elif (distances["front"] > 0.3):
+      print("Front distance close!")
+      pedalPositionRequest.position = 0.08
     else:
-      print("Front distance too close!")
+      #print("Front distance too close!")
       pedalPositionRequest.position = 0
       groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = 0
