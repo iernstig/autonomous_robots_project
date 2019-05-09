@@ -19,7 +19,7 @@ import time
 import signal
 import socket
 import struct
-import thread
+import _thread
 
 import cluonDataStructures_pb2
 
@@ -50,7 +50,7 @@ class OD4Session:
         self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, req)
         self.isConnected = True
         if not self.isRunning:
-            thread.start_new_thread(self.__runner, ())
+            _thread.start_new_thread(self.__runner, ())
             self.isRunning = True
 
 
@@ -87,7 +87,7 @@ class OD4Session:
 
 
     def __process(self, e):
-        #print "Received Envelope with ID = " + str(e.dataType) + "/" + str(e.senderStamp)
+        print ("Received Envelope with ID = %s/%s" % ((e.dataType), str(e.senderStamp)))
 
         # Extract sent, received, and sample time point.
         sent = datetime.datetime.fromtimestamp(timestamp=e.sent.seconds) + datetime.timedelta(microseconds=e.sent.microseconds)
@@ -100,12 +100,12 @@ class OD4Session:
         if e.dataType in self.callbacks.keys():
             msg = self.callbacks[e.dataType][1]()
             msg.ParseFromString(e.serializedData)
-            thread.start_new_thread(self.callbacks[e.dataType][0], (msg, senderStamp, timestamps) + (self.callbacks[e.dataType][2]))
+            _thread.start_new_thread(self.callbacks[e.dataType][0], (msg, senderStamp, timestamps) + (self.callbacks[e.dataType][2]))
 
 
     def __runner(self):
         LENGTH_ENVELOPE_HEADER = 5
-        buf = ""
+        buf = b""
         expectedBytes = 0
         consumedEnvelopeHeader = False
 
@@ -127,16 +127,16 @@ class OD4Session:
                     byte1 = buf[1]
 
                     # Check for Envelope header.
-                    if ord(byte0) == int('0x0D',16) and ord(byte1) == int('0xA4',16):
+                    if byte0 == 0x0D and byte1 == 0xA4:
                         v = struct.unpack('<L', buf[1:5]) # Read uint32_t and convert to little endian.
                         expectedBytes = v[0] >> 8 # The second byte belongs to the header of an Envelope.
                         buf = buf[5:] # Remove header.
                     else:
-                        print "Failed to consume header from Envelope."
+                        print ("Failed to consume header from Envelope.")
 
             # Receive data from UDP socket.
             data = self.sock.recv(2048)
             if len(data) != 2048:
                 # Avoid corrupt packets.
-                buf = buf + data
+                buf =  b"".join([buf, data])
 
