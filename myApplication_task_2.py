@@ -186,6 +186,25 @@ def findCircles(gray_image, color_image):
       color_image = cv2.circle(color_image,(i[0],i[1]), 2, (0,0,255),3)
   return color_image, circle_data
 
+def filterHitsOnCar(hits, circle_data, distance_thres, image):
+  if (circle_data is not None):
+    hits_new = []
+    for cone in hits:
+      tooClose = False
+      for i in range(circle_data.shape[0]):
+        distance = numpy.sqrt((cone[0] - circle_data[i,0])**2 + (cone[1] - circle_data[i, 1])**2)
+        if (distance < distance_thres):
+          tooClose = True
+          break
+      if (tooClose == False):
+        hits_new.append(cone)
+      else:
+        cv2.drawMarker(image, position=cone, color=(255,0,255), markerType=cv2.MARKER_CROSS, thickness = 3)
+        print("Hit removed!")
+    return hits_new, image
+  else:
+    return hits, image
+
 # Create a session to send and receive messages from a running OD4Session;
 # Replay mode: CID = 253
 # Live mode: CID = 112
@@ -296,8 +315,8 @@ while True:
 
     blue_list, yellow_list, img = findCones(erode_blue, erode_yellow, img, cid)
     img, circle_data = findCircles(gray_img, img)
-    if (circle_data is not None):
-      print(circle_data.shape)
+    yellow_list, img = filterHitsOnCar(yellow_list, circle_data, distance_thres=80, image=img)
+    blue_list, img = filterHitsOnCar(blue_list, circle_data, distance_thres=80, image=img)
 
 
     '''cone_image = numpy.zeros((480,640,3), numpy.uint8)
@@ -312,12 +331,12 @@ while True:
 
     aimPoint = calcAimPoint(blue_list, yellow_list, aimPoint)
     if (aimPoint[0] is not None):
-      img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS)
+      img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
       
       (steeringAngle, integralPart) = calcSteeringAngle(aimPoint, integralPart)
       #img = cv2.putText(img, text=str(steeringAngle/numpy.pi*180), org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale = 1, color = (255, 255, 255), lineType = 2)
     else:
-      img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS)
+      img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
    
     img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
 
