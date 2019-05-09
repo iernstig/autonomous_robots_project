@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# for not uploading python bytecode
+__pycache__
