@@ -142,7 +142,7 @@ def calcSteeringAngle(aimPoint, integralPart):
     return steeringAngle, integralPart
 
 def findCones(blue_img, yellow_img, image, cid):
-  im2, cnts, hier = cv2.findContours(blue_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+  cnts, hier = cv2.findContours(blue_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
   blue_hits = []
   for c in cnts:
     M = cv2.moments(c)
@@ -158,7 +158,7 @@ def findCones(blue_img, yellow_img, image, cid):
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
       blue_hits.append((cX, cY))
   
-  im2, cnts, hier = cv2.findContours(yellow_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+  cnts, hier = cv2.findContours(yellow_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
   yellow_hits = []
   for c in cnts:
     M = cv2.moments(c)
