@@ -121,4 +121,17 @@ def filterHitsOnCar(hits, circle_data, distance_thres, image):
 
 def detectCarCanny(img):
     canny = cv2.Canny(img, 100, 200)
+    contours, hier= cv2.findContours(canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    approximations = []
+
+    for contour in contours:
+        perimiter = cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, 0.04 * perimiter, True)
+        approximations.append(approx)
+    
+    for approx in approximations:
+        print('approx')
+        if len(approx) == 4: # if square
+            cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3) 
     return canny
+ 

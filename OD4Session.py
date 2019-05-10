@@ -87,7 +87,7 @@ class OD4Session:
 
 
     def __process(self, e):
-        print ("Received Envelope with ID = %s/%s" % ((e.dataType), str(e.senderStamp)))
+        #print ("Received Envelope with ID = %s/%s" % ((e.dataType), str(e.senderStamp)))
 
         # Extract sent, received, and sample time point.
         sent = datetime.datetime.fromtimestamp(timestamp=e.sent.seconds) + datetime.timedelta(microseconds=e.sent.microseconds)
