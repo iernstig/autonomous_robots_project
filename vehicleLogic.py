@@ -141,8 +141,12 @@ while True:
     hsv_high_blue = (120, 255, 90)
     hsv_low_yellow = (25, 80, 120)
     hsv_high_yellow = (32, 255, 255)
+    orange_high = (209, 156, 151)
+    orange_low = (156, 91, 83)
+    
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
+
     #result = cv2.bitwise_and(img, img, mask=mask)
 
     # Dilate 
@@ -169,13 +173,14 @@ while True:
     else:
       img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
    
-    img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
+    #img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
     
-    canny = detectCarCanny(gray_img)
-
+    car_detect_img = detectCarCircles(img)
+    
     if(cid == 253):
       cv2.imshow("image", img)
-      cv2.imshow('canny', canny)
+      cv2.imshow('car-detect', car_detect_img)
+      #cv2.imshow('canny', canny)
       #cv2.imshow("Gray", gray_img)
       #cv2.imshow("canny", canny)
       #cv2.imshow("mask", mask)
