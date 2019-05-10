@@ -1,0 +1,4 @@
+    hsv_low_blue = (100, 98, 45) # for blue
+    hsv_high_blue = (115, 255, 96) # for blue
+    hsv_low_yellow = (25, 49, 155) # for yellow
+    hsv_high_yellow = (33, 178, 216) # for yellow
