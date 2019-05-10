@@ -1,17 +1,7 @@
 #!/usr/bin/env python
+import numpy
+import cv2
 
-def onDistance(msg, senderStamp, timeStamps):
-    #print "Received distance; senderStamp=" + str(senderStamp)
-    #print "sent: " + str(timeStamps[0]) + ", received: " + str(timeStamps[1]) + ", sample time stamps: " + str(timeStamps[2])
-    #print msg
-    if senderStamp == 0:
-        distances["front"] = msg.distance
-    if senderStamp == 1:
-        distances["left"] = msg.distance
-    if senderStamp == 2:
-        distances["rear"] = msg.distance
-    if senderStamp == 3:
-        distances["right"] = msg.distance
 
 def calcAimPoint(blueHits, yellowHits, oldAimPoint):
   alpha = 0.5

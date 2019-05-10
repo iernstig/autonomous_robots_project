@@ -32,6 +32,18 @@ from util import *
 distances = { "front": 0.0, "left": 0.0, "right": 0.0, "rear": 0.0 };
 
 ################################################################################
+def onDistance(msg, senderStamp, timeStamps):
+    #print "Received distance; senderStamp=" + str(senderStamp)
+    #print "sent: " + str(timeStamps[0]) + ", received: " + str(timeStamps[1]) + ", sample time stamps: " + str(timeStamps[2])
+    #print msg
+    if senderStamp == 0:
+        distances["front"] = msg.distance
+    if senderStamp == 1:
+        distances["left"] = msg.distance
+    if senderStamp == 2:
+        distances["rear"] = msg.distance
+    if senderStamp == 3:
+        distances["right"] = msg.distance
 # This callback is triggered whenever there is a new distance reading coming in.
 
 # Create a session to send and receive messages from a running OD4Session;
@@ -75,6 +87,7 @@ if (cid == 112):
   counterTime = time.time()
 # Main loop to process the next image frame coming in.
 #i=0
+
 while True:
     # Wait for next notification.
     cond.Z()
