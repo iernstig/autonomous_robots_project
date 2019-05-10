@@ -136,7 +136,7 @@ while True:
     #canny = cv2.Canny(gray_img, 110, 220)
     gray_img = cv2.medianBlur(gray_img, 5)
     
-
+    # image colors 
     hsv_low_blue = (100, 85, 45)
     hsv_high_blue = (120, 255, 90)
     hsv_low_yellow = (25, 80, 120)
@@ -170,9 +170,12 @@ while True:
       img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
    
     img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
+    
+    canny = detectCarCanny(gray_img)
 
     if(cid == 253):
       cv2.imshow("image", img)
+      cv2.imshow('canny', canny)
       #cv2.imshow("Gray", gray_img)
       #cv2.imshow("canny", canny)
       #cv2.imshow("mask", mask)

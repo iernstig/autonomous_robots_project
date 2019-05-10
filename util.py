@@ -118,3 +118,7 @@ def filterHitsOnCar(hits, circle_data, distance_thres, image):
     return hits_new, image
   else:
     return hits, image
+
+def detectCarCanny(img):
+    canny = cv2.Canny(img, 100, 200)
+    return canny
