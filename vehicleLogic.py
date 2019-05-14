@@ -178,7 +178,7 @@ while True:
     car_detect_img = detectCarCircles(img)
     
     if(cid == 253):
-      cv2.imshow("image", img)
+      #cv2.imshow("image", img)
       cv2.imshow('car-detect', car_detect_img)
       #cv2.imshow('canny', canny)
       #cv2.imshow("Gray", gray_img)

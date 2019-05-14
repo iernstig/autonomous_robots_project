@@ -2,6 +2,7 @@
 import numpy
 import cv2
 
+
 def calcAimPoint(blueHits, yellowHits, oldAimPoint):
   alpha = 0.5
   blueCoords = (0, 0)
@@ -135,24 +136,40 @@ def detectCarCanny(img):
             canny = cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3) 
     return cann
 def detectCarCircles(img):
-  # this method is very unfinished
   gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
   
   #---------- detect circles ----------   
   circles = cv2.HoughCircles(gray_image, cv2.HOUGH_GRADIENT, 1, 20, 
-                             param1=180, param2=22, minRadius=5, maxRadius=40)
+                             param1=80, param2=22, minRadius=5, maxRadius=40)
   
+
+  CIRCLE_DISTANCE_THRESHOLD = 100
   if circles is not None:
     if circles.any() != 0:
-      cirlces = numpy.uint16(numpy.around(circles))
-      circles = cirlces[0]
+      circles = numpy.uint16(numpy.around(circles))
+      circles = circles[0]
       
       for circle in circles:
-        print(circle)
         x, y = circle[0], circle[1]
         radius = circle[2]
-        img = cv2.circle(img,(x, y), radius, (0, 0, 255), 3) 
-        
+        # draw the circles 
+        img = cv2.circle(img,(x, y), radius, (0, 0, 255), 3)
+
+        # find circle-clusters to detect the car
+        if len(circles) > 3:
+          cluster_count = 0
+          for other_circle in circles:
+            x_other, y_other = other_circle[0], other_circle[1]
+            if abs(x - x_other) < CIRCLE_DISTANCE_THRESHOLD and abs(y - y_other) < CIRCLE_DISTANCE_THRESHOLD:
+              cluster_count += 1
+            if cluster_count > 3:
+              # cv2.putText(img, "car-detected (x:{}, y:{})".format(x, y),
+              #             (250, 200),
+              #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+              print("found car at x:{}, y{}".format(x, y))
+              if x > 300:
+                pass # should stop the car here? 
+              
   return img
 
 
