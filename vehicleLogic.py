@@ -24,6 +24,7 @@ import cv2
 import time
 # OD4Session is needed to send and receive messages
 import OD4Session
+import skimage
 # Import the OpenDLV Standard Message Set.
 import opendlv_standard_message_set_v0_9_6_pb2
 from util import *
@@ -141,8 +142,8 @@ while True:
     hsv_high_blue = (120, 255, 90)
     hsv_low_yellow = (25, 80, 120)
     hsv_high_yellow = (32, 255, 255)
-    hsv_low_orange = (1, 100, 110)#cv2.cvtColor((156, 91, 83), cv2.COLOR_RGB2HSV)
-    hsv_high_orange = (5, 160, 155)#cv2.cvtColor((209, 156, 151), cv2.COLOR_RGB2HSV)
+    hsv_low_orange = (1, 58, 110) #(156, 91, 83) # (1, 100, 110)
+    hsv_high_orange =  (8, 160, 220) #(209, 156, 151) # (5, 160, 155)
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
     orange_cones = cv2.inRange(hsv_img, hsv_low_orange, hsv_high_orange)

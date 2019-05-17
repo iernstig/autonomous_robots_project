@@ -71,7 +71,7 @@ def findCones(blue_img, yellow_img, image, cid):
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
       blue_hits.append((cX, cY))
-  
+
   cnts, hier = cv2.findContours(yellow_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
   yellow_hits = []
   for c in cnts:
@@ -90,7 +90,7 @@ def findCones(blue_img, yellow_img, image, cid):
   return blue_hits, yellow_hits, image
 
 def findCircles(gray_image, color_image):
-  circles = cv2.HoughCircles(gray_image, cv2.HOUGH_GRADIENT, 1, 20, 
+  circles = cv2.HoughCircles(gray_image, cv2.HOUGH_GRADIENT, 1, 20,
                              param1=220, param2=22,minRadius=5,maxRadius=40)
   circle_data = None
   if (circles is not None):
@@ -129,30 +129,29 @@ def detectCarCanny(img):
         perimiter = cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, 0.04 * perimiter, True)
         approximations.append(approx)
-    
+
     for approx in approximations:
-        canny = cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3) 
+        canny = cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3)
         if len(approx) == 4: # if square
-            canny = cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3) 
+            canny = cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3)
     return cann
 def detectCarCircles(img):
   gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-  
-  #---------- detect circles ----------   
-  circles = cv2.HoughCircles(gray_image, cv2.HOUGH_GRADIENT, 1, 20, 
+
+  #---------- detect circles ----------
+  circles = cv2.HoughCircles(gray_image, cv2.HOUGH_GRADIENT, 1, 20,
                              param1=80, param2=22, minRadius=5, maxRadius=40)
-  
 
   CIRCLE_DISTANCE_THRESHOLD = 100
   if circles is not None:
     if circles.any() != 0:
       circles = numpy.uint16(numpy.around(circles))
       circles = circles[0]
-      
+
       for circle in circles:
         x, y = circle[0], circle[1]
         radius = circle[2]
-        # draw the circles 
+        # draw the circles
         img = cv2.circle(img,(x, y), radius, (0, 0, 255), 3)
 
         # find circle-clusters to detect the car
@@ -168,10 +167,12 @@ def detectCarCircles(img):
               #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
               print("found car at x:{}, y{}".format(x, y))
               if x > 300:
-                pass # should stop the car here? 
-              
+                pass # should stop the car here?
   return img
 
+
+def detect_intersection_and_slow_down():
+  pass
 
 def detectOrangeCones(orange_img, image, cid):
   # ---------- analyze each contour by color ----------
