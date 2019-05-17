@@ -141,28 +141,31 @@ while True:
     hsv_high_blue = (120, 255, 90)
     hsv_low_yellow = (25, 80, 120)
     hsv_high_yellow = (32, 255, 255)
-    orange_high = (209, 156, 151)
-    orange_low = (156, 91, 83)
+    hsv_low_orange = cv2.cvtColor((156, 91, 83), cv2.COLOR_RGB2HSV)
+    hsv_high_orange = cv2.cvtColor((209, 156, 151), cv2.COLOR_RGB2HSV)
     
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
-
+    orange_cones = cv2.inRange(hsv_img, hsv_low_orange, hsv_high_orange)
     #result = cv2.bitwise_and(img, img, mask=mask)
 
     # Dilate 
     kernel = numpy.ones((3,3), numpy.uint8)
     dilate_blue = cv2.dilate(blue_cones, kernel, iterations=4)
     dilate_yellow = cv2.dilate(yellow_cones, kernel, iterations=4)
+    dilate_orange = cv2.dilate(orange_cones, kernel, iterations=4)
 
     # Erode
     erode_blue = cv2.erode(dilate_blue, kernel, iterations=2)
     erode_yellow = cv2.erode(dilate_yellow, kernel, iterations=2)
+    erode_orange = cv2.erode(dilate_orange, kernel, iterations=2)
 
 
     blue_list, yellow_list, img = findCones(erode_blue, erode_yellow, img, cid)
-    img, circle_data = findCircles(gray_img, img)
-    yellow_list, img = filterHitsOnCar(yellow_list, circle_data, distance_thres=80, image=img)
-    blue_list, img = filterHitsOnCar(blue_list, circle_data, distance_thres=80, image=img)
+    orange_list, img = detectOrangeCones(erode_orange, img, cid)
+    # img, circle_data = findCircles(gray_img, img)
+    # yellow_list, img = filterHitsOnCar(yellow_list, circle_data, distance_thres=80, image=img)
+    # blue_list, img = filterHitsOnCar(blue_list, circle_data, distance_thres=80, image=img)
 
     aimPoint = calcAimPoint(blue_list, yellow_list, aimPoint)
     if (aimPoint[0] is not None):
@@ -173,9 +176,9 @@ while True:
     else:
       img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
    
-    #img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
+    img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
     
-    car_detect_img = detectCarCircles(img)
+    car_detect_img = detectCarCircles(img.copy())
     
     if(cid == 253):
       #cv2.imshow("image", img)

@@ -173,12 +173,10 @@ def detectCarCircles(img):
   return img
 
 
-def find_blue_cones(blue_img, img):
-  pass
-def detectOrangeCones(blue_img, yellow_img, img, cid):
+def detectOrangeCones(orange_img, image, cid):
   # ---------- analyze each contour by color ----------
-  cnts, hier = cv2.findContours(blue_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-  blue_hits = []
+  cnts, hier = cv2.findContours(orange_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+  orange_hits = []
   for c in cnts:
     M = cv2.moments(c)
     cX = int(M["m10"] / M["m00"])
@@ -190,21 +188,5 @@ def detectOrangeCones(blue_img, yellow_img, img, cid):
         cv2.drawContours(image, [c], 0, (255, 0, 0), 2)
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-      blue_hits.append((cX, cY))
-  
-  cnts, hier = cv2.findContours(yellow_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-  yellow_hits = []
-  for c in cnts:
-    M = cv2.moments(c)
-    cX = int(M["m10"] / M["m00"])
-    cY = int(M["m01"] / M["m00"])
-
-    area = cv2.contourArea(c)
-    if (area < 2000 and area > 50):
-      if (cid == 253):
-        #print("Area: " + str(area))
-        cv2.drawContours(image, [c], 0, (0, 255, 0), 2)
-        cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
-        cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-      yellow_hits.append((cX, cY))
-  return blue_hits, yellow_hits, image
+      orange_hits.append((cX, cY))
+  return orange_hits, image
