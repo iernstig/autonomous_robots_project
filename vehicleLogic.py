@@ -135,21 +135,20 @@ while True:
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     #canny = cv2.Canny(gray_img, 110, 220)
     gray_img = cv2.medianBlur(gray_img, 5)
-    
-    # image colors 
+
+    # image colors
     hsv_low_blue = (100, 85, 45)
     hsv_high_blue = (120, 255, 90)
     hsv_low_yellow = (25, 80, 120)
     hsv_high_yellow = (32, 255, 255)
-    hsv_low_orange = cv2.cvtColor((156, 91, 83), cv2.COLOR_RGB2HSV)
-    hsv_high_orange = cv2.cvtColor((209, 156, 151), cv2.COLOR_RGB2HSV)
-    
+    hsv_low_orange = (1, 100, 110)#cv2.cvtColor((156, 91, 83), cv2.COLOR_RGB2HSV)
+    hsv_high_orange = (5, 160, 155)#cv2.cvtColor((209, 156, 151), cv2.COLOR_RGB2HSV)
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
     orange_cones = cv2.inRange(hsv_img, hsv_low_orange, hsv_high_orange)
     #result = cv2.bitwise_and(img, img, mask=mask)
 
-    # Dilate 
+    # Dilate
     kernel = numpy.ones((3,3), numpy.uint8)
     dilate_blue = cv2.dilate(blue_cones, kernel, iterations=4)
     dilate_yellow = cv2.dilate(yellow_cones, kernel, iterations=4)
@@ -170,19 +169,16 @@ while True:
     aimPoint = calcAimPoint(blue_list, yellow_list, aimPoint)
     if (aimPoint[0] is not None):
       img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
-      
       (steeringAngle, integralPart) = calcSteeringAngle(aimPoint, integralPart)
       #img = cv2.putText(img, text=str(steeringAngle/numpy.pi*180), org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale = 1, color = (255, 255, 255), lineType = 2)
     else:
       img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
-   
+
     img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
-    
     car_detect_img = detectCarCircles(img.copy())
-    
     if(cid == 253):
-      #cv2.imshow("image", img)
-      cv2.imshow('car-detect', car_detect_img)
+      cv2.imshow("image", img)
+      # cv2.imshow('car-detect', car_detect_img)
       #cv2.imshow('canny', canny)
       #cv2.imshow("Gray", gray_img)
       #cv2.imshow("canny", canny)
@@ -192,7 +188,7 @@ while True:
       #cv2.imshow("Yellow original", yellow_cones)
       #cv2.imshow("Blue Eroded", erode_blue)
       #cv2.imshow("Yellow Eroded", erode_yellow)
-      #cv2.imshow("Cones", cone_image) 
+      #cv2.imshow("Cones", cone_image)
       cv2.waitKey(2)
 
     ############################################################################
@@ -237,6 +233,6 @@ while True:
       groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = 0
       session.send(1090, groundSteeringRequest.SerializeToString());
-      
+
     session.send(1086, pedalPositionRequest.SerializeToString());
 
