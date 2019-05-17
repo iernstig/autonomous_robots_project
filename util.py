@@ -134,13 +134,26 @@ def detectCarCanny(img):
         canny = cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3)
         if len(approx) == 4: # if square
             canny = cv2.drawContours(canny, approx, -1 , (0, 255, 0), 3)
-    return cann
+    return canny
+
+def detectCarHaar(img):
+  cascade = cv2.CascadeClassifier('cars.xml')
+  gray = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
+  cars = cascade.detectMultiScale(gray, 1.3, 1, minSize=(10, 10), maxSize=(200, 200))
+
+  for car in cars:
+    x, y, w, h = car
+    cv2.rectangle(img, (x, y), (x + w, y + h), (255,0,0), 2)
+
+  return img
+
 def detectCarCircles(img):
+  x_car, y_car = None, None
   gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
   #---------- detect circles ----------
   circles = cv2.HoughCircles(gray_image, cv2.HOUGH_GRADIENT, 1, 20,
-                             param1=80, param2=22, minRadius=5, maxRadius=40)
+                             param1=200, param2=22, minRadius=5, maxRadius=40)
 
   CIRCLE_DISTANCE_THRESHOLD = 100
   if circles is not None:
@@ -165,23 +178,34 @@ def detectCarCircles(img):
               # cv2.putText(img, "car-detected (x:{}, y:{})".format(x, y),
               #             (250, 200),
               #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-              print("found car at x:{}, y{}".format(x, y))
-              if x > 300:
-                pass # should stop the car here?
-  return img
+              #print("found car at x:{}, y{}".format(x, y))
+              x_car, y_car = x, y
+              break
+  return img, x_car, y_car
 
 
-def detect_intersection_and_slow_down():
-  pass
+def detect_intersection_and_slow_down(orange_cone_centers):
+  cone_in_left_part = False
+  cone_in_right_part = False
+  for center in orange_cone_centers:
+    cX, cY = center
+    if cX < int(640/2):
+      cone_in_left_part = True
+    if cX > int(640/2):
+      cone_in_right_part = True
+  return cone_in_right_part and cone_in_left_part
 
 def detectOrangeCones(orange_img, image, cid):
   # ---------- analyze each contour by color ----------
   cnts, hier = cv2.findContours(orange_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
   orange_hits = []
+  cone_centers = []
   for c in cnts:
     M = cv2.moments(c)
     cX = int(M["m10"] / M["m00"])
     cY = int(M["m01"] / M["m00"])
+    cone_centers.append((cX, cY))
+
 
     area = cv2.contourArea(c)
     if (area < 2000 and area > 50):
@@ -190,4 +214,6 @@ def detectOrangeCones(orange_img, image, cid):
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
       orange_hits.append((cX, cY))
-  return orange_hits, image
+  return orange_hits, image, cone_centers
+
+

@@ -117,6 +117,7 @@ while True:
 
     # Turn buf into img array (640 * 480 * 4 bytes (ARGB)) to be used with OpenCV.
     img = numpy.frombuffer(buf, numpy.uint8).reshape(480, 640, 4)
+    large_img = img.copy()
     img = img[220:330,:,:]
 
     ############################################################################
@@ -162,7 +163,8 @@ while True:
 
 
     blue_list, yellow_list, img = findCones(erode_blue, erode_yellow, img, cid)
-    orange_list, img = detectOrangeCones(erode_orange, img, cid)
+    orange_list, img, orange_centers = detectOrangeCones(erode_orange, img, cid)
+    at_intersection = detect_intersection_and_slow_down(orange_centers)
     # img, circle_data = findCircles(gray_img, img)
     # yellow_list, img = filterHitsOnCar(yellow_list, circle_data, distance_thres=80, image=img)
     # blue_list, img = filterHitsOnCar(blue_list, circle_data, distance_thres=80, image=img)
@@ -176,10 +178,14 @@ while True:
       img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
 
     img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
-    car_detect_img = detectCarCircles(img.copy())
+    car_detect_img, x_car, y_car = detectCarCircles(img.copy())
+    haar_detect_img = detectCarHaar(img.copy())
+
+    #canny= detectCarCanny(img.copy())
     if(cid == 253):
       cv2.imshow("image", img)
-      # cv2.imshow('car-detect', car_detect_img)
+      #cv2.imshow('car-detect', car_detect_img)
+      cv2.imshow('car-detect-haar', haar_detect_img)
       #cv2.imshow('canny', canny)
       #cv2.imshow("Gray", gray_img)
       #cv2.imshow("canny", canny)
@@ -234,6 +240,13 @@ while True:
       groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = 0
       session.send(1090, groundSteeringRequest.SerializeToString());
+
+    if at_intersection:
+        pedalPositionRequest.position = 0.08
+        if x_car is not None:
+            if x_car > int(640/2):
+                pedalPositionRequest.position = 0
+                print('stopping due to other car')
 
     session.send(1086, pedalPositionRequest.SerializeToString());
 
