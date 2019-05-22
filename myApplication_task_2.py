@@ -46,49 +46,6 @@ def onDistance(msg, senderStamp, timeStamps):
     if senderStamp == 3:
         distances["right"] = msg.distance
 
-'''def calcAimPoint(blueCones, yellowCones):
-    #TODO: Add constraint for where aimpoint can be placed.
-    (width, height) = blueCones.shape
-    kernel = numpy.ones((10,10))/(10.0*10.0)
-    anchor = (-1,-1)
-    delta = 0
-    ddepth = -1
-    blueCoords = None
-    yellowCoords = None
-    nonZeroBlue = cv2.findNonZero(blueCones)
-    nonZeroYellow = cv2.findNonZero(yellowCones)
-    blueCoords = (0,0)
-    yellowCoords = (0,0)
-    if (nonZeroBlue is not None):
-        for i in range(nonZeroBlue.shape[0]):
-            x = nonZeroBlue[i,0,0]
-            y = nonZeroBlue[i,0,1]
-            if (y > blueCoords[1]):         
-                blueCoords = (x,y)
-    else:
-        blueCoords = None
-    if (nonZeroYellow is not None):
-        for i in range(nonZeroYellow.shape[0]):
-            x = nonZeroYellow[i,0,0]
-            y = nonZeroYellow[i,0,1]
-            if (y > yellowCoords[1]):         
-                yellowCoords = (x,y)
-    else:
-        yellowCoords = None
-    if (blueCoords is not None and yellowCoords is not None):
-        xCoord = (yellowCoords[0] + blueCoords[0])/2
-        yCoord = (yellowCoords[1] + blueCoords[1])/2
-    elif (blueCoords is not None):
-        xCoord = 480
-        yCoord = 55
-    elif (yellowCoords is not None):
-        xCoord = 160
-        yCoord = 55
-    else:
-        xCoord = None
-        yCoord = None
-    return (xCoord, yCoord)
-'''
 def calcAimPoint(blueHits, yellowHits, oldAimPoint):
   alpha = 0.5
   blueCoords = (0, 0)
@@ -123,7 +80,7 @@ def calcAimPoint(blueHits, yellowHits, oldAimPoint):
   return (xCoord, yCoord)
   
 def calcSteeringAngle(aimPoint, integralPart):
-    K_p_left = 0.3
+    K_p_left = 0.26
     K_p_right = 0.2
     K_i = 0
     xCoord = aimPoint[0]
@@ -209,7 +166,7 @@ def filterHitsOnCar(hits, circle_data, distance_thres, image):
 # Replay mode: CID = 253
 # Live mode: CID = 112
 # TODO: Change to CID 112 when this program is used on Kiwi.
-cid = 253
+cid = 112
 session = OD4Session.OD4Session(cid)
 # Register a handler for a message; the following example is listening
 # for messageID 1039 which represents opendlv.proxy.DistanceReading.
@@ -386,12 +343,9 @@ while True:
     pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
     if (distances["front"] > 0.4):
       pedalPositionRequest.position = 0.11
-    elif (distances["front"] > 0.35):
-      print("Front distance close!")
-      pedalPositionRequest.position = 0.08
     else:
       print("Front distance too close!")
-      pedalPositionRequest.position = 0
+      pedalPositionRequest.position = -0.05
       groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = 0
       session.send(1090, groundSteeringRequest.SerializeToString());

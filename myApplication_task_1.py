@@ -123,7 +123,7 @@ def calcAimPoint(blueHits, yellowHits, oldAimPoint):
   return (xCoord, yCoord)
   
 def calcSteeringAngle(aimPoint, integralPart):
-    K_p_left = 0.3
+    K_p_left = 0.28
     K_p_right = 0.2
     K_i = 0
     xCoord = aimPoint[0]
@@ -180,7 +180,7 @@ def findCones(blue_img, yellow_img, image, cid):
 # Replay mode: CID = 253
 # Live mode: CID = 112
 # TODO: Change to CID 112 when this program is used on Kiwi.
-cid = 253
+cid = 112
 session = OD4Session.OD4Session(cid)
 # Register a handler for a message; the following example is listening
 # for messageID 1039 which represents opendlv.proxy.DistanceReading.
@@ -352,7 +352,7 @@ while True:
     # Be careful!
     pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
     if (distances["front"] > 0.4):
-      pedalPositionRequest.position = 0.11
+      pedalPositionRequest.position = 0.14
     elif (distances["front"] > 0.35):
       print("Front distance close!")
       pedalPositionRequest.position = 0.08
