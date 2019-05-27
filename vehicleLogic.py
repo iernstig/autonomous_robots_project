@@ -50,7 +50,7 @@ def onDistance(msg, senderStamp, timeStamps):
 # Replay mode: CID = 253
 # Live mode: CID = 112
 # TODO: Change to CID 112 when this program is used on Kiwi.
-cid = 112
+cid = 253
 session = OD4Session.OD4Session(cid)
 # Register a handler for a message; the following example is listening
 # for messageID 1039 which represents opendlv.proxy.DistanceReading.
@@ -86,7 +86,6 @@ if (cid == 112):
   frameCounter = 0
   counterTime = time.time()
 # Main loop to process the next image frame coming in.
-#i=0
 
 # Drive modes. 0 = drive, 1 = wait at intersection, 2 = drive through intersection, 3 = drive through with precedense
 mode = 0
@@ -94,7 +93,7 @@ mode = 0
 while True:
     # Wait for next notification.
     cond.Z()
-    #print "Received new frame."
+    # Loop that prints frame rate when live on Kiwi
     if (cid == 112):
       frameCounter += 1
       if frameCounter == 20:
@@ -119,27 +118,15 @@ while True:
 
     # Turn buf into img array (640 * 480 * 4 bytes (ARGB)) to be used with OpenCV.
     img = numpy.frombuffer(buf, numpy.uint8).reshape(480, 640, 4)
-    img = img[220:330,:,:]
+    img = img[220:330,:,:] # Crop unneccesary parts of the image
 
     ############################################################################
-    # TODO: Add some image processing logic here.
-
-    # The following example is adding a red rectangle and displaying the result.
-    # cv2.rectangle(img, (50, 50), (100, 100), (0,0,255), 2)
-
-    # Added by Erik
-    # canny = cv2.Canny(img, 100,200)
-    #if (i % 40 == 0):
-    #  cv2.imwrite("screen-" + str(i) +".png", img)
-    #  print("Grabbed screen nr " + str(i))
-    #i = i +1
-
+ 
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #canny = cv2.Canny(gray_img, 110, 220)
     gray_img = cv2.medianBlur(gray_img, 5)
     
-    # image colors 
+    # Filter colors in HSV space 
     hsv_low_blue = (100, 85, 45)
     hsv_high_blue = (120, 255, 90)
     hsv_low_yellow = (25, 80, 120)
@@ -150,8 +137,6 @@ while True:
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
     orange_cones = cv2.inRange(hsv_img, orange_low, orange_high)
-
-    #result = cv2.bitwise_and(img, img, mask=mask)
 
     # Dilate 
     kernel = numpy.ones((3,3), numpy.uint8)
@@ -164,90 +149,74 @@ while True:
     erode_yellow = cv2.erode(dilate_yellow, kernel, iterations=2)
     erode_orange = cv2.erode(dilate_orange, kernel, iterations=2)
 
-
+    # Find cones of different colors
     blue_list, img = findCones(erode_blue, img, cid, color=(255,0,0))
     yellow_list, img = findCones(erode_yellow, img, cid, color=(0,255,255))
     orange_list, img = findCones(erode_orange, img, cid, color=(0,100,255))
+    
+    # Remove hits that are close to a car - assumed to be false positives 
     img, circle_data = findCircles(gray_img, img)
     yellow_list, img = filterHitsOnCar(yellow_list, circle_data, distance_thres=80, image=img)
     blue_list, img = filterHitsOnCar(blue_list, circle_data, distance_thres=80, image=img)
 
-    
-    
-
+    # Logic for the different modes
     if (mode == 1):
+      # Find car
       car_pos, img = detectCarCircles(gray_img, img)
       if (car_pos[0] is None):
         frms_without_car += 1
       else:
         frms_without_car = 0
         if (car_pos[0] < 150):
+          # If car is far to the left - safe to drive though
           mode = 3
           print("Set mode to 3")
       if (frms_without_car > 60):
+        # No car for 60 consecutive frames. Try to drive though intersection.
         print("Set mode to 2")
         frms_with_car = 0
         mode = 2
     elif (mode == 2):
       car_pos, img = detectCarCircles(gray_img, img)
       if (len(orange_list) < 2):
+        # No orange hits - go back to drive mode
         print("Set mode to 0")
         mode = 0
       elif (car_pos[0] is not None):
         frms_with_car += 1
-
       if(frms_with_car > 0):
+        # A car is found - go back to wait at intersection
         print("Set mode to 1")
         mode = 1
         frms_without_car = 0
+      # Calculate aimpoint based on orange cones
       aimPoint, img = calcOrangeAimPoint(orange_list, aimPoint, img)
     elif (mode == 3):
       if (len(orange_list) < 2):
+        # No orange hits - go back to drive mode
         print("Set mode to 0")
         mode = 0
       else:
+        # Calculate aimpoint based on orange cones
         aimPoint, img = calcOrangeAimPoint(orange_list, aimPoint, img)
-    else:
+    else: # Mode 0
       aimPoint = calcAimPoint(blue_list, yellow_list, aimPoint)
       if (len(orange_list) > 1):
+        # Two orange cones - go to wait at intersection mode
         print("Set mode to 1")
         mode = 1
         frms_without_car = 0
-    
+    # Draw aimpoint and drive mode to be used when playin recordings
     img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
+    img = cv2.putText(img, str(mode), (200, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), thickness=2)
+
+    # Calculate steering angle based on aimpoint
     (steeringAngle, integralPart) = calcSteeringAngle(aimPoint, integralPart)
     
-    img = cv2.putText(img, str(mode), (200, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255))
+    # Display image if in recording mode
     if(cid == 253):
       cv2.imshow("image", img)
-      #cv2.imshow('car-detect', car_detect_img)
-      #cv2.imshow('canny', canny)
-      #cv2.imshow("Gray", gray_img)
-      #cv2.imshow("canny", canny)
-      #cv2.imshow("mask", mask)
-      #cv2.imshow("result", result)
-      #cv2.imshow("Blue original", blue_cones)
-      #cv2.imshow("Yellow original", yellow_cones)
-      #cv2.imshow("Blue Eroded", erode_blue)
-      #cv2.imshow("Yellow Eroded", erode_yellow)
-      #cv2.imshow("Cones", cone_image) 
       cv2.waitKey(2)
-
-    ############################################################################
-    # Example: Accessing the distance readings.
-    '''print "Front = " + str(distances["front"])
-    print "Left = " + str(distances["left"])
-    print "Right = " + str(distances["right"])
-    print "Rear = " + str(distances["rear"])'''
-
-    ############################################################################
-    # Example for creating and sending a message to other microservices; can
-    # be removed when not needed.
-    '''angleReading = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngleReading()
-    angleReading.angle = 123.45
-
-    # 1038 is the message ID for opendlv.proxy.AngleReading
-    session.send(1038, angleReading.SerializeToString());'''
 
     ############################################################################
     # Steering and acceleration/decelration.
@@ -262,15 +231,16 @@ while True:
     # Be careful!
     pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
     if(mode == 1):
+      # No tourqe if in wait at intersection mode
       pedalPositionRequest.position = 0.0
     elif (distances["front"] > 0.4):
-      pedalPositionRequest.position = 0.11
+      pedalPositionRequest.position = 0.13
     elif (distances["front"] > 0.35):
       print("Front distance close!")
       pedalPositionRequest.position = 0.08
     else:
       print("Front distance too close!")
-      pedalPositionRequest.position = -0.02
+      pedalPositionRequest.position = 0.0
       groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = 0
       
