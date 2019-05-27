@@ -98,7 +98,7 @@ def calcSteeringAngle(aimPoint, integralPart):
     # the case when we want to turn right
     else:
       steeringAngle = K_p_right * error + K_i * integralPart
-    # Keep the steering angle within allowd bounds.
+    # Keep the steering angle within allowed bounds.
     if (steeringAngle < -0.3):
         steeringAngle = -0.3
         integralPart = 0
@@ -110,7 +110,7 @@ def calcSteeringAngle(aimPoint, integralPart):
 
 def findCones(color_filtered_img, image, cid, color):
   '''
-  Find cones from colorfiltered binary images, using openCVs findContours. Hits are filtered out
+  Find cones from color filtered binary images, using openCVs findContours. Hits are filtered out
   if they are too small or large to avoid some false positives. The contours are plotted if in
   replay mode.
   '''

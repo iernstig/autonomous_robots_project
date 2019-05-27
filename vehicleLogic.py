@@ -33,9 +33,6 @@ distances = { "front": 0.0, "left": 0.0, "right": 0.0, "rear": 0.0 };
 
 ################################################################################
 def onDistance(msg, senderStamp, timeStamps):
-    #print "Received distance; senderStamp=" + str(senderStamp)
-    #print "sent: " + str(timeStamps[0]) + ", received: " + str(timeStamps[1]) + ", sample time stamps: " + str(timeStamps[2])
-    #print msg
     if senderStamp == 0:
         distances["front"] = msg.distance
     if senderStamp == 1:
@@ -74,10 +71,6 @@ mutex = sysv_ipc.Semaphore(keySemCondition)
 cond = sysv_ipc.Semaphore(keySemCondition)
 
 ################################################################################
-# Load calibration data
-#xGrid = numpy.loadtxt("xGrid.csv", delimiter=",")
-#yGrid = numpy.loadtxt("yGrid.csv", delimiter=",")
-
 # integral part init
 integralPart = 0
 aimPoint = (320,55)
@@ -118,10 +111,12 @@ while True:
 
     # Turn buf into img array (640 * 480 * 4 bytes (ARGB)) to be used with OpenCV.
     img = numpy.frombuffer(buf, numpy.uint8).reshape(480, 640, 4)
-    img = img[220:330,:,:] # Crop unneccesary parts of the image
+    # Crop unneccesary parts of the image
+    img = img[220:330,:,:]
 
     ############################################################################
  
+    # Convert BGR image to HSV and grayscale. Grayscale is blurred using median blur.
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray_img = cv2.medianBlur(gray_img, 5)
@@ -133,7 +128,6 @@ while True:
     hsv_high_yellow = (32, 255, 255) 
     orange_low = (1, 58, 110)
     orange_high = (8, 160, 220)
-    
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
     orange_cones = cv2.inRange(hsv_img, orange_low, orange_high)
@@ -206,14 +200,14 @@ while True:
         print("Set mode to 1")
         mode = 1
         frms_without_car = 0
-    # Draw aimpoint and drive mode to be used when playin recordings
+    # Draw aimpoint and drive mode to be used when in replay mode
     img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS, thickness=3)
     img = cv2.putText(img, str(mode), (200, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), thickness=2)
 
     # Calculate steering angle based on aimpoint
     (steeringAngle, integralPart) = calcSteeringAngle(aimPoint, integralPart)
     
-    # Display image if in recording mode
+    # Display image if in replay mode
     if(cid == 253):
       cv2.imshow("image", img)
       cv2.waitKey(2)

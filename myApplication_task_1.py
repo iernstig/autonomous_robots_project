@@ -34,9 +34,6 @@ distances = { "front": 0.0, "left": 0.0, "right": 0.0, "rear": 0.0 };
 ################################################################################
 # This callback is triggered whenever there is a new distance reading coming in.
 def onDistance(msg, senderStamp, timeStamps):
-    #print "Received distance; senderStamp=" + str(senderStamp)
-    #print "sent: " + str(timeStamps[0]) + ", received: " + str(timeStamps[1]) + ", sample time stamps: " + str(timeStamps[2])
-    #print msg
     if senderStamp == 0:
         distances["front"] = msg.distance
     if senderStamp == 1:
@@ -46,50 +43,15 @@ def onDistance(msg, senderStamp, timeStamps):
     if senderStamp == 3:
         distances["right"] = msg.distance
 
-'''def calcAimPoint(blueCones, yellowCones):
-    #TODO: Add constraint for where aimpoint can be placed.
-    (width, height) = blueCones.shape
-    kernel = numpy.ones((10,10))/(10.0*10.0)
-    anchor = (-1,-1)
-    delta = 0
-    ddepth = -1
-    blueCoords = None
-    yellowCoords = None
-    nonZeroBlue = cv2.findNonZero(blueCones)
-    nonZeroYellow = cv2.findNonZero(yellowCones)
-    blueCoords = (0,0)
-    yellowCoords = (0,0)
-    if (nonZeroBlue is not None):
-        for i in range(nonZeroBlue.shape[0]):
-            x = nonZeroBlue[i,0,0]
-            y = nonZeroBlue[i,0,1]
-            if (y > blueCoords[1]):         
-                blueCoords = (x,y)
-    else:
-        blueCoords = None
-    if (nonZeroYellow is not None):
-        for i in range(nonZeroYellow.shape[0]):
-            x = nonZeroYellow[i,0,0]
-            y = nonZeroYellow[i,0,1]
-            if (y > yellowCoords[1]):         
-                yellowCoords = (x,y)
-    else:
-        yellowCoords = None
-    if (blueCoords is not None and yellowCoords is not None):
-        xCoord = (yellowCoords[0] + blueCoords[0])/2
-        yCoord = (yellowCoords[1] + blueCoords[1])/2
-    elif (blueCoords is not None):
-        xCoord = 480
-        yCoord = 55
-    elif (yellowCoords is not None):
-        xCoord = 160
-        yCoord = 55
-    else:
-        xCoord = None
-        yCoord = None
-    return (xCoord, yCoord)
-'''
+
 def calcAimPoint(blueHits, yellowHits, oldAimPoint):
+  '''
+  Calculating aimpoint based on yellow and blue cones using
+  exponential moving avarage for a smoother effect. The aimpoint
+  is put in the middle of the blue and yellow cones that are furthest
+  down in the image (closest to the car). If only blue or yellow or 
+  no cones at all are found the aimpoint is put at predefined positions.
+  '''
   alpha = 0.5
   blueCoords = (0, 0)
   yellowCoords = (0, 0)
@@ -123,16 +85,25 @@ def calcAimPoint(blueHits, yellowHits, oldAimPoint):
   return (xCoord, yCoord)
   
 def calcSteeringAngle(aimPoint, integralPart):
+    '''
+    Calculating steering angle based on aimpoint, implemented as a PI-regulator,
+    however the integral part has been put to zero. The regulator tries to keep the
+    x-coordinate of the aimpoint in the middle of the image.
+    '''
+    # Different gains for left and right steering since the car has a bias.
     K_p_left = 0.28
     K_p_right = 0.2
     K_i = 0
     xCoord = aimPoint[0]
     error = (320 - xCoord)/320.0
     integralPart += error
+    # the case when we want to turn left
     if (error > 0):
      steeringAngle = K_p_left * error + K_i * integralPart
+    # the case when we want to turn right
     else:
       steeringAngle = K_p_right * error + K_i * integralPart
+    # Keep the steering angle within allowed bounds.
     if (steeringAngle < -0.3):
         steeringAngle = -0.3
         integralPart = 0
@@ -142,6 +113,11 @@ def calcSteeringAngle(aimPoint, integralPart):
     return steeringAngle, integralPart
 
 def findCones(blue_img, yellow_img, image, cid):
+  '''
+  Find cones from blue and yellow color filtered binary images, using openCVs findContours. Hits are 
+  filtered out if they are too small or large to avoid some false positives. The contours are 
+  plotted if in replay mode.
+  '''
   im2, cnts, hier = cv2.findContours(blue_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
   blue_hits = []
   for c in cnts:
@@ -152,7 +128,6 @@ def findCones(blue_img, yellow_img, image, cid):
     area = cv2.contourArea(c)
     if (area < 2000 and area > 50):
       if (cid == 253):
-        #print("Area: " + str(area))
         cv2.drawContours(image, [c], 0, (255, 0, 0), 2)
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -168,7 +143,6 @@ def findCones(blue_img, yellow_img, image, cid):
     area = cv2.contourArea(c)
     if (area < 2000 and area > 50):
       if (cid == 253):
-        #print("Area: " + str(area))
         cv2.drawContours(image, [c], 0, (0, 255, 0), 2)
         cv2.circle(image, (cX, cY), 3, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX-10, cY-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
@@ -180,7 +154,7 @@ def findCones(blue_img, yellow_img, image, cid):
 # Replay mode: CID = 253
 # Live mode: CID = 112
 # TODO: Change to CID 112 when this program is used on Kiwi.
-cid = 112
+cid = 253
 session = OD4Session.OD4Session(cid)
 # Register a handler for a message; the following example is listening
 # for messageID 1039 which represents opendlv.proxy.DistanceReading.
@@ -204,10 +178,6 @@ mutex = sysv_ipc.Semaphore(keySemCondition)
 cond = sysv_ipc.Semaphore(keySemCondition)
 
 ################################################################################
-# Load calibration data
-#xGrid = numpy.loadtxt("xGrid.csv", delimiter=",")
-#yGrid = numpy.loadtxt("yGrid.csv", delimiter=",")
-
 # integral part init
 integralPart = 0
 aimPoint = (0,0)
@@ -216,11 +186,11 @@ if (cid == 112):
   frameCounter = 0
   counterTime = time.time()
 # Main loop to process the next image frame coming in.
-#i=0
+
 while True:
     # Wait for next notification.
     cond.Z()
-    #print "Received new frame."
+    # Loop that prints frame rate when live on Kiwi
     if (cid == 112):
       frameCounter += 1
       if frameCounter == 20:
@@ -245,33 +215,21 @@ while True:
 
     # Turn buf into img array (640 * 480 * 4 bytes (ARGB)) to be used with OpenCV.
     img = numpy.frombuffer(buf, numpy.uint8).reshape(480, 640, 4)
+    # Crop unneccesary parts of the image
     img = img[220:330,:,:]
 
     ############################################################################
-    # TODO: Add some image processing logic here.
 
-    # The following example is adding a red rectangle and displaying the result.
-    # cv2.rectangle(img, (50, 50), (100, 100), (0,0,255), 2)
-
-    # Added by Erik
-    # canny = cv2.Canny(img, 100,200)
-    #if (i % 40 == 0):
-    #  cv2.imwrite("screen-" + str(i) +".png", img)
-    #  print("Grabbed screen nr " + str(i))
-    #i = i +1
-
+    # Convert BGR image to HSV 
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    #gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #gray_img = cv2.blur(gray_img, (6,6))
-    #canny = cv2.Canny(gray_img, 60, 120)
 
+    # Filter colors in HSV space 
     hsv_low_blue = (100, 85, 45)
     hsv_high_blue = (120, 255, 90)
     hsv_low_yellow = (25, 80, 120)
     hsv_high_yellow = (32, 255, 255)
     blue_cones = cv2.inRange(hsv_img, hsv_low_blue, hsv_high_blue)
     yellow_cones = cv2.inRange(hsv_img, hsv_low_yellow, hsv_high_yellow)
-    #result = cv2.bitwise_and(img, img, mask=mask)
 
     # Dilate 
     kernel = numpy.ones((3,3), numpy.uint8)
@@ -282,71 +240,31 @@ while True:
     erode_blue = cv2.erode(dilate_blue, kernel, iterations=2)
     erode_yellow = cv2.erode(dilate_yellow, kernel, iterations=2)
 
-
+    # Find cones of different colors
     blue_list, yellow_list, img = findCones(erode_blue, erode_yellow, img, cid)
 
-
-    '''cone_image = numpy.zeros((480,640,3), numpy.uint8)
-    blue_image = numpy.zeros((480,640,3), numpy.uint8)
-    blue_image[:] = (255,0,0)
-    yellow_image = numpy.zeros((480,640,3), numpy.uint8)
-    yellow_image[:] = (0, 255, 255)
-
-    yellow_part = cv2.bitwise_and(yellow_image, yellow_image, mask=erode_yellow)
-    blue_part = cv2.bitwise_and(blue_image, blue_image, mask=erode_blue)
-    cone_image = cv2.add(blue_part, yellow_part)'''
-
     aimPoint = calcAimPoint(blue_list, yellow_list, aimPoint)
-    if (aimPoint[0] is not None):
-      img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS)
-      
-      (steeringAngle, integralPart) = calcSteeringAngle(aimPoint, integralPart)
-      #img = cv2.putText(img, text=str(steeringAngle/numpy.pi*180), org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale = 1, color = (255, 255, 255), lineType = 2)
-    else:
-      img = cv2.drawMarker(img, position=(0,0), color=(0,0,255), markerType=cv2.MARKER_CROSS)
-   
-    img = cv2.putText(img, text=str(distances["front"]), org=(50,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color = (255,255,255), lineType = 2)
 
+    # Draw aimpoint to be used when in replay mode
+    img = cv2.drawMarker(img, position=aimPoint, color=(0,0,255), markerType=cv2.MARKER_CROSS)
+
+    # Calculate steering angle based on aimpoint
+    (steeringAngle, integralPart) = calcSteeringAngle(aimPoint, integralPart)
+
+    # Display image if in replay mode
     if(cid == 253):
       cv2.imshow("image", img)
-      #cv2.imshow("Gray", gray_img)
-      #cv2.imshow("canny", canny)
-      #cv2.imshow("mask", mask)
-      #cv2.imshow("result", result)
-      #cv2.imshow("Blue original", blue_cones)
-      #cv2.imshow("Yellow original", yellow_cones)
-      #cv2.imshow("Blue Eroded", erode_blue)
-      #cv2.imshow("Yellow Eroded", erode_yellow)
-      #cv2.imshow("Cones", cone_image)
       cv2.waitKey(2)
-
-    ############################################################################
-    # Example: Accessing the distance readings.
-    '''print "Front = " + str(distances["front"])
-    print "Left = " + str(distances["left"])
-    print "Right = " + str(distances["right"])
-    print "Rear = " + str(distances["rear"])'''
-
-    ############################################################################
-    # Example for creating and sending a message to other microservices; can
-    # be removed when not needed.
-    '''angleReading = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngleReading()
-    angleReading.angle = 123.45
-
-    # 1038 is the message ID for opendlv.proxy.AngleReading
-    session.send(1038, angleReading.SerializeToString());'''
 
     ############################################################################
     # Steering and acceleration/decelration.
     #
     # Uncomment the following lines to steer; range: +38deg (left) .. -38deg (right).
     # Value groundSteeringRequest.groundSteering must be given in radians (DEG/180. * PI).
-    #print(str(distances["front"]))
-    if (aimPoint[0] is not None):
-      #print("Steering angle: " + str(steeringAngle/numpy.pi*180))
-      groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
-      groundSteeringRequest.groundSteering = steeringAngle
-      session.send(1090, groundSteeringRequest.SerializeToString());
+
+    groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
+    groundSteeringRequest.groundSteering = steeringAngle
+    
 
     # Uncomment the following lines to accelerate/decelerate; range: +0.25 (forward) .. -1.0 (backwards).
     # Be careful!
@@ -359,9 +277,8 @@ while True:
     else:
       print("Front distance too close!")
       pedalPositionRequest.position = 0
-      groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
       groundSteeringRequest.groundSteering = 0
-      session.send(1090, groundSteeringRequest.SerializeToString());
-      
+    
+    session.send(1090, groundSteeringRequest.SerializeToString());
     session.send(1086, pedalPositionRequest.SerializeToString());
 
